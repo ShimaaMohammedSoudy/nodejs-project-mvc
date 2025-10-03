@@ -8,7 +8,7 @@ import commentRoutes from "./modules/comments/commentRoutes.js";
 const app=express();
 app.use(express.json());
 app.use(userRoutes)
-app.use(postRoutes)
+app.use("/posts", postRoutes)
 app.use("/comments", commentRoutes);
 
 

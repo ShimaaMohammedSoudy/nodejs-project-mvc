@@ -1,94 +1,99 @@
 import postCollection from "../../database/models/postModel.js";
 
-// ========== Create Post ==========
-const createPost = async (req, res) => {
-  try {
-    const { title, content, imageUrl } = req.body;
 
-    const newPost = await postCollection.add({
+// Create new post
+export const createPost = async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const newPost = {
       title,
       content,
-      imageUrl: imageUrl || null,
-      userId: req.user.userId, 
-      createdAt: new Date(),
-    });
+      userId: req.user.userId,
+      createdAt: new Date().toISOString(),
+    };
 
-    res.status(201).json({ msg: "Post created", postId: newPost.id });
+    const docRef = await postCollection.add(newPost);
+    res.status(201).json({ id: docRef.id, ...newPost });
   } catch (err) {
-    res.status(500).json({ msg: "Error creating post", error: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
 
-// ========== Get All Posts ==========
-const getAllPosts = async (req, res) => {
+// Get all posts
+export const getAllPosts = async (req, res) => {
   try {
     const snapshot = await postCollection.get();
-    const posts = [];
-    snapshot.forEach(doc => {
-      posts.push({ id: doc.id, ...doc.data() });
-    });
-
-    res.status(200).json(posts);
+    const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json(posts);
   } catch (err) {
-    res.status(500).json({ msg: "Error fetching posts", error: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
 
-// ========== Get Post By Id ==========
-const getPostById = async (req, res) => {
-  try {
-    const postDoc = await postCollection.doc(req.params.id).get();
-    if (!postDoc.exists) return res.status(404).json({ msg: "Post not found" });
-
-    res.status(200).json({ id: postDoc.id, ...postDoc.data() });
-  } catch (err) {
-    res.status(500).json({ msg: "Error fetching post", error: err.message });
-  }
-};
-
-// ========== Update Post ==========
-const updatePost = async (req, res) => {
+// Get post by ID
+export const getPostById = async (req, res) => {
   try {
     const { id } = req.params;
-    const postDoc = await postCollection.doc(id).get();
+    const doc = await postCollection.doc(id).get();
 
-    if (!postDoc.exists) return res.status(404).json({ msg: "Post not found" });
-
-    const postData = postDoc.data();
-
-    
-    if (postData.userId !== req.user.userId && req.user.role !== "admin") {
-      return res.status(403).json({ msg: "Not authorized" });
+    if (!doc.exists) {
+      return res.status(404).json({ message: "Post not found" });
     }
 
-    await postCollection.doc(id).update({ ...req.body, updatedAt: new Date() });
-
-    res.status(200).json({ msg: "Post updated successfully" });
+    res.json({ id: doc.id, ...doc.data() });
   } catch (err) {
-    res.status(500).json({ msg: "Error updating post", error: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
 
-// ========== Delete Post ==========
-const deletePost = async (req, res) => {
+// Update post
+export const updatePost = async (req, res) => {
   try {
     const { id } = req.params;
     const postDoc = await postCollection.doc(id).get();
 
-    if (!postDoc.exists) return res.status(404).json({ msg: "Post not found" });
+    if (!postDoc.exists) {
+      return res.status(404).json({ message: "Post not found" });
+    }
 
     const postData = postDoc.data();
 
+    // Check ownership or admin
     if (postData.userId !== req.user.userId && req.user.role !== "admin") {
-      return res.status(403).json({ msg: "Not authorized" });
+      return res.status(403).json({ message: "Not authorized to update this post" });
+    }
+
+    await postCollection.doc(id).update({
+      ...req.body,
+      updatedAt: new Date().toISOString(),
+    });
+
+    res.json({ message: "Post updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Delete post (only owner or admin)
+export const deletePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const postDoc = await postCollection.doc(id).get();
+
+    if (!postDoc.exists) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const postData = postDoc.data();
+
+    // Check ownership or admin
+    if (postData.userId !== req.user.userId && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Not authorized to delete this post" });
     }
 
     await postCollection.doc(id).delete();
-
-    res.status(200).json({ msg: "Post deleted successfully" });
+    res.json({ message: "Post deleted" });
   } catch (err) {
-    res.status(500).json({ msg: "Error deleting post", error: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
-
-export { createPost, getAllPosts, getPostById, updatePost, deletePost };
