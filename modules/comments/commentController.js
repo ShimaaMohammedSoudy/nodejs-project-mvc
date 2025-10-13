@@ -1,4 +1,5 @@
 import commentCollection from "../../database/models/commentModel.js";
+import postCollection from "../../database/models/postModel.js"; 
 
 // Get all comments
 export const getComments = async (req, res) => {
@@ -27,13 +28,33 @@ export const getCommentById = async (req, res) => {
   }
 };
 
-// Add new comment
+// Add new comment 
 export const addComment = async (req, res) => {
   try {
-    const { text, userId, postId } = req.body;
+    const { text } = req.body;
+    const { postId } = req.params;
+
+    if (!postId) {
+      return res.status(400).json({ msg: "Post ID is required in URL" });
+    }
+
+    if (!text) {
+      return res.status(400).json({ msg: "Comment text is required" });
+    }
+
+    const postDoc = await postCollection.doc(postId).get();
+
+    if (!postDoc.exists) {
+      return res.status(404).json({ msg: "Post not found" });
+    }
+
+    if (postDoc.data().userId !== req.user.userId) {
+      return res.status(403).json({ msg: "You can only comment on your own posts" });
+    }
+
     const newComment = {
       text,
-      userId,
+      userId: req.user.userId,
       postId,
       createdAt: new Date().toISOString(),
     };
