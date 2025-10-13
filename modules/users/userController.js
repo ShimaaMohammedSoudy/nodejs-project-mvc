@@ -1,4 +1,6 @@
 import userCollection from "../../database/models/userModel.js";
+import postCollection from "../../database/models/postModel.js";
+import commentCollection from "../../database/models/commentModel.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -54,21 +56,31 @@ const Login = async (req, res) => {
 
 //////////// Get User Profile //////////////
 const getProfile = async (req, res) => {
+
+  const userId = req.user.userId;
   const userDoc = await userCollection.doc(req.user.userId).get();
+
   if (!userDoc.exists) return res.status(404).json({ msg: "User not found" });
 
-  res.status(200).json({ id: userDoc.id, ...userDoc.data(), password: undefined });
+    const postsSnapshot = await postCollection.where("userId", "==", userId).get();
+    const posts = postsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const commentsSnapshot = await commentCollection.where("userId", "==", userId).get();
+    const comments = commentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+
+  res.status(200).json({ id: userDoc.id, ...userDoc.data(), password: undefined ,posts,comments});
 };
 
 //////////// Update User Profile //////////////
 const updateProfile = async (req, res) => {
   const updates = req.body;
-  if (updates.password) updates.password = bcrypt.hashSync(updates.password, 8);
+  if (updates.password) 
+    updates.password = bcrypt.hashSync(updates.password, 8);
 
   await userCollection.doc(req.user.userId).update(updates);
   res.status(200).json({ msg: "Profile updated successfully" });
 };
-
 
 // -------------- Get All Users (Admin only) --------------
 const getAllUsers = async (req, res) => {

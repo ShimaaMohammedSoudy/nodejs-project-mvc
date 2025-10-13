@@ -10,7 +10,7 @@ commentRoutes.get("/all", getComments);
 commentRoutes.get("/:id", getCommentById);
 
 // Protected routes (user or admin)
-commentRoutes.post("/create", verifyToken, addComment);
+commentRoutes.post("/create/:postId", verifyToken, addComment);
 commentRoutes.put("/update/:id", verifyToken, editComment);
 commentRoutes.delete("/delete/:id", verifyToken, removeComment);
 
